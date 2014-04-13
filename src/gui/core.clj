@@ -1,8 +1,8 @@
 (ns gui.core
   (:import
-    (javax.swing Box JPanel BoxLayout JSplitPane JButton JTextField JLabel JOptionPane JFrame)
+    (javax.swing Box JPanel BoxLayout JSplitPane JButton JTextField JLabel JOptionPane JFrame SwingUtilities)
     (java.awt FlowLayout Component GridLayout BorderLayout)
-    (java.awt.event ActionListener)))
+    (java.awt.event ActionListener KeyListener KeyEvent)))
 
 (defn shelf [& components]
   (let [shelf (JPanel.)]
@@ -50,6 +50,22 @@
         (.add g (f))))
     g))
 
+(defn horizontal [a b c]
+  (let [g (doto (JPanel.)
+            (.setLayout (BorderLayout.))
+            (.add a BorderLayout/WEST)
+            (.add b BorderLayout/CENTER)
+            (.add c BorderLayout/EAST))]
+    g))
+
+(defn vertical [a b c]
+  (let [g (doto (JPanel.)
+            (.setLayout (BorderLayout.))
+            (.add a BorderLayout/NORTH)
+            (.add b BorderLayout/CENTER)
+            (.add c BorderLayout/SOUTH))]
+    g))
+
 (defn frame
   ([title pane] (frame title pane 0 0 true))
   ([title pane width height] (frame title pane width height nil))
@@ -65,3 +81,19 @@
        (.setSize frame width height))
      frame)))
 
+(defn bind-key-event [component handler]
+  ;; 绑定键盘事件
+  (.setFocusable component true)
+  (.addKeyListener
+    component
+    (proxy [KeyListener] []
+      (keyPressed [^KeyEvent e]
+        (handler e))
+      (keyReleased [_] _)
+      (keyTyped [_] _))))
+
+(defn invoke-later [f]
+  (SwingUtilities/invokeLater
+    (proxy [Runnable] []
+      (run []
+        (f)))))
