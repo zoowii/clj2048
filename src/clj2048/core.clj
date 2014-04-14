@@ -110,7 +110,7 @@
   "判断是否无路可走，也就是游戏是否结束了")
 
 (defn iter-matrix [m]
-  ;; iterate matrix
+  ;; (iter-matrix [[1 2 3] [4 5 6] [7 8 9]]) => [[0 1] [1 2] ... ]
   (for [i (range (count m))
         j (range (count (matrix/get-column m 0)))]
     [(+ j (* (count m) i)) (matrix/mget m i j)]))
