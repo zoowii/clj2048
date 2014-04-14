@@ -121,8 +121,7 @@
         grid (:grid state)]
     (doseq [[idx val] (iter-matrix grid)]
       (.setText (nth coms idx) (str val)))
-    ;; 这几行代码会导致非常奇怪的问题，第一次执行时for循环会执行，以后不会，
-    ;; 可能是因为Clojure把它当作无副作用的函数调用，然后就缓存了 ???
+    ;; 这几行代码会导致非常奇怪的问题，在多线程条件下，使用for会失效，doseq不会
     ;(for [[idx val] (iter-matrix grid)]
     ;  (let [com (nth coms idx)]
     ;    (.setText com (str val))))
