@@ -3,17 +3,15 @@
   (:import (javax.swing JPanel SwingUtilities JLabel JFrame)
            (java.awt.event KeyEvent))
   (:require [clojure.core.matrix :as matrix]
-            [clojure.core.matrix.operators :as m-op])
-  (:use gui.core))
+            [clojure.core.matrix.operators :as m-op]
+            [clj2048.ui2048 :as ui2048])
+  (:use gui.core
+        clj2048.util))
 
-(def state (atom {:score 0
-                  :grid  (matrix/matrix
-                           [[0 2 0 0]
-                            [0 0 0 2]
-                            [0 0 0 0]
-                            [0 0 0 0]])}))
+(def state (atom {}))
 
-(defmulti get-rows-of-direction :direction) ;; 把grid转成各个方向的rows
+;;; 把grid转成各个方向的rows
+(defmulti get-rows-of-direction :direction)
 
 (defmethod get-rows-of-direction :up [{grid :grid}]
   (map #(matrix/get-column grid %) (range 4)))
@@ -28,8 +26,8 @@
 (defmethod get-rows-of-direction :right [{grid :grid}]
   (map reverse
        (map #(matrix/get-row grid %) (range 4))))
-
-(defmulti parse-direction-rows-to-grid :direction) ;; 把各个方向的rows转成grid
+;;; 把各个方向的rows转成grid
+(defmulti parse-direction-rows-to-grid :direction)
 
 (defmethod parse-direction-rows-to-grid :up [{rows :rows}]
   (map #(matrix/get-column rows %) (range 4)))
@@ -47,15 +45,6 @@
   ;; 按照方向把grid切分成上下或左右的序列，注意，正反方向是不一样的
   (matrix/matrix
     (get-rows-of-direction {:grid grid :direction direction})))
-
-(defn- swap-seq [col i j]
-  ; 交换集合col的第i和j位
-  (assoc col i (nth col j) j (nth col i)))
-
-(defn- fill-zeros [col n]
-  ;; 在col后面填上0，直到col长度达到n
-  {:pre (>= n (count col))}
-  (concat col (repeat (- n (count col)) 0)))
 
 (defn- eat-zeros [row]
   ;; “吃”掉row中的0
@@ -87,15 +76,6 @@
                  matrix/matrix)]
     (assoc state :grid grid :score score)))
 
-(defn- seq-index [col]
-  ;; (seq-index [ a b c ]) => [ [ 0 a] [1 b] [3 c]]
-  (map #(vector %1 %2) (range) col))
-
-(defn- get-positions-of-value [col val]
-  (map first
-       (filter #(= (second %) val)
-               (seq-index col))))
-
 (defn add-2-to-grid [state]
   ;; 在格子中剩下的空白位置随机插入一个新的2
   (let [col (flatten (:grid state))
@@ -107,25 +87,22 @@
     state))
 
 (defn ended-grid? [state]
-  "判断是否无路可走，也就是游戏是否结束了")
-
-(defn iter-matrix [m]
-  ;; (iter-matrix [[1 2 3] [4 5 6] [7 8 9]]) => [[0 1] [1 2] ... ]
-  (for [i (range (count m))
-        j (range (count (matrix/get-column m 0)))]
-    [(+ j (* (count m) i)) (matrix/mget m i j)]))
+  "判断是否无路可走,或者是否达到目标分数，也就是游戏是否结束了"
+  (cond
+    (>= (:score state) 2048)
+    :success
+    (empty?
+      (filter-matrix #(< % 1) (:grid state)))
+    :fail
+    :else
+    :go-on))
 
 (defn display-grid [panel state]
   ;; 在panel中显示grid
   (let [coms (.getComponents panel)
         grid (:grid state)]
     (doseq [[idx val] (iter-matrix grid)]
-      (.setText (nth coms idx) (str val)))
-    ;; 这几行代码会导致非常奇怪的问题，在多线程条件下，使用for会失效，doseq不会
-    ;(for [[idx val] (iter-matrix grid)]
-    ;  (let [com (nth coms idx)]
-    ;    (.setText com (str val))))
-    ))
+      (ui2048/update-grid-item-text! (nth coms idx) val))))
 
 (defn- display-score [pane state]
   ;; 把分数更新显示到界面上
@@ -143,6 +120,14 @@
         (display-grid pane cur-state)
         (display-score pane cur-state)))))
 
+(defn- reset-grid! []
+  (reset! state
+          (-> (assoc @state
+                :score 0
+                :grid (zero-int-matrix 4))
+              add-2-to-grid
+              add-2-to-grid)))
+
 (defn- on-key-event [^KeyEvent e]
   (let [com (.getSource e)
         key (.getKeyCode e)]
@@ -155,18 +140,30 @@
       (change-grid! com :left)
       KeyEvent/VK_RIGHT
       (change-grid! com :right)
+      nil)
+    (condp = (ended-grid? @state)
+      :success
+      (do
+        (alert "Successfully!")
+        (reset-grid!))
+      :fail
+      (do
+        (alert "You failed the game!")
+        (reset-grid!))
       nil)))
 
 (defn- create-main-frame [main-pane]
-  (let [frm (frame "2048"
-                   (stack
-                     (label "Score: 0")
-                     main-pane) 650 500)]
-    frm))
+  (doto (frame "2048 Author: zoowii"
+               (stack
+                 (label "Score: 0")
+                 main-pane) 600 450)
+    (.setBackground ui2048/background-color)))
 
 (defn -main [& args]
-  (let [grid-pane (grid 4 4 #(label "世界和平"))
-        ^JFrame gui (create-main-frame grid-pane)
+  (let [grid-pane (grid 4 4 #(ui2048/grid-item "世界和平" :empty))
+        ^JFrame gui (doto (create-main-frame grid-pane)
+                      (.setAlwaysOnTop true))
         _ (bind-key-event grid-pane on-key-event)]
+    (reset-grid!)
     (invoke-later #(.setVisible gui true))
     (display-grid grid-pane @state)))

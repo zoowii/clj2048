@@ -1,8 +1,35 @@
 (ns gui.core
   (:import
-    (javax.swing Box JPanel BoxLayout JSplitPane JButton JTextField JLabel JOptionPane JFrame SwingUtilities)
-    (java.awt FlowLayout Component GridLayout BorderLayout)
-    (java.awt.event ActionListener KeyListener KeyEvent)))
+    (javax.swing Box JPanel BoxLayout JSplitPane JButton JTextField JLabel JOptionPane JFrame SwingUtilities ImageIcon)
+    (java.awt FlowLayout Component GridLayout BorderLayout Toolkit Graphics Color)
+    (java.awt.event ActionListener KeyListener KeyEvent))
+  (:require [clojure.java.io :as io]))
+
+(defn get-image-icon [path]
+  (ImageIcon. (io/resource path)))
+
+(defn get-image [path]
+  (.createImage (Toolkit/getDefaultToolkit) (io/resource path)))
+
+(defn set-icon! [label img-path]
+  (.setIcon label (get-image-icon img-path)))
+
+(defn draw-image! [^Graphics g img-path]
+  (.drawImage g (get-image img-path) 0 0 nil))
+
+(defn color
+  ([r g b]
+   (Color. r g b))
+  ([color-str]
+   (condp = color-str
+     :white Color/WHITE
+     :black Color/BLACK
+     :red Color/RED
+     :green Color/GREEN
+     :blue Color/BLUE
+     :orange Color/ORANGE
+     :yellow Color/YELLOW
+     Color/BLACK)))
 
 (defn shelf [& components]
   (let [shelf (JPanel.)]
@@ -97,3 +124,4 @@
     (proxy [Runnable] []
       (run []
         (f)))))
+
